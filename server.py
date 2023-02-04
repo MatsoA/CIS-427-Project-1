@@ -3,8 +3,8 @@ import sqlite3
 message = ""
 two_hundred_ok = "200 OK \n"
 stockCount = 1
+userCount = 1
 conn = sqlite3.connect('test.db')
-
 def buy(stock_symbol, amount, price, user_id):
     total = amount * price # amount of stocks * price of each stock
     global message # declaring message is a global variable
@@ -30,7 +30,7 @@ def buy(stock_symbol, amount, price, user_id):
         if(len(cursor3.fetchall()) == 0): # user DOES NOT own any stocks of type stock_symbol, creates a new entry
             global stockCount
             stockCount = stockCount + 1
-            conn.execute("INSERT OR IGNORE INTO STOCKS (ID,stock_symbol,stock_balance,user_id) VALUES (" + str(stockCount) + ", '" + str(stock_symbol) + "', " + str(amount) + ", " + str(user_id) + ")")
+            conn.execute("INSERT INTO STOCKS (stock_symbol,stock_balance,user_id) VALUES ('" + str(stock_symbol) + "', " + str(amount) + ", " + str(user_id) + ")")
             conn.commit()
             conn.execute("UPDATE USERS SET usd_balance = (usd_balance - " + str(total) + ") WHERE ID = " + str(user_id))
             conn.commit()
@@ -95,23 +95,21 @@ s.bind((socket.gethostname(),3108))
 s.listen(5)
 
 conn.execute('''CREATE TABLE IF NOT EXISTS USERS(
-    ID int AUTO_INCREMENT NOT NULL,
+    ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     first_name varchar(255), 
     last_name varchar(255), 
     user_name varchar(255), 
     password varchar(255), 
-    usd_balance DOUBLE NOT NULL, 
-    PRIMARY KEY(ID)
+    usd_balance DOUBLE NOT NULL 
     );'''
     )
 
 conn.execute('''CREATE TABLE IF NOT EXISTS STOCKS(
-    ID int AUTO_INCREMENT NOT NULL,
+    ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     stock_symbol varchar(4) NOT NULL, 
     stock_name varchar(20), 
     stock_balance DOUBLE, 
     user_id int,  
-    PRIMARY KEY(ID),
     FOREIGN KEY (user_id) REFERENCES USERS(ID) 
     );'''
     )
@@ -119,16 +117,15 @@ conn.execute('''CREATE TABLE IF NOT EXISTS STOCKS(
 conn.execute("pragma foreign_keys = ON;")
 
 # Generates first user and assigns first stock
-conn.execute("INSERT OR IGNORE INTO USERS (ID,first_name,last_name,user_name,password, usd_balance) \
-      VALUES (1, 'Hadi', 'Zazali', 'hzal', 'password', 100)");
+conn.execute("INSERT INTO USERS (first_name,last_name,user_name,password, usd_balance) \
+      VALUES ('Hadi', 'Zazali', 'hzal', 'password', 100)");
 conn.commit()
-conn.execute("INSERT OR IGNORE INTO STOCKS (ID,stock_symbol,stock_name,stock_balance,user_id) \
-      VALUES (1, 'TSLA', 'Tesla', 10, 1)");
-conn.commit()
+
 
 #  Test Cases Here:
-sell('TSLA', 2, 4, 1)
-
+buy('APPLE', 2, 4, 1)
+buy('GOOGLE', 2, 4, 1)
+buy('Tesla', 2, 4, 1)
 
 cursor = conn.execute("SELECT ID, first_name, last_name, user_name, password, usd_balance from USERS")
 for row in cursor:
@@ -153,7 +150,7 @@ print("Opened database successfully")
 while False:
     clientSocket, address = s.accept()
     print("Connection established from address " + str(address))
-    sell('TSLA', 4, 10, 1)
+    #handleRequest(string)
     clientSocket.send(bytes(message))
     clientSocket.close()
 
