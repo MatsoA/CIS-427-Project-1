@@ -215,4 +215,23 @@ while True:
     response = ""
     clientSocket.close()
 
+    #loop represents client's session with server
+    while response != "SHUTDOWN": 
+        #here for testing, should be deleted once switchboard is complete
+        sell('TSLA', 0, 10, 1)
+
+        #wait for command from client
+        response = clientSocket.recv(2018).decode('ascii')
+        print(response)
+        
+        #switchboard for responses. add other cases here
+        if(response == "SHUTDOWN"):
+            message = "Bye"
+       
+        #send response back to client
+        clientSocket.send(message.encode('ascii'))
+        
+    #reset for next client
+    response = ""
+    clientSocket.close()
 conn.close()
