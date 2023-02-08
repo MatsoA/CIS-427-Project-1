@@ -246,8 +246,6 @@ while command != "SHUTDOWN":
         
         print("Command: %s" % command)
 
-        if(stock_symbol is None):
-            print("\nworks\n")
 
         #switchboard for responses. add other cases here
         if(command == "SHUTDOWN" and stock_symbol is None):
