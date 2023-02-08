@@ -3,6 +3,10 @@ import sqlite3
 message = ""
 response = ""
 command = ""
+amount = ""
+price = ""
+user_id = ""
+
 two_hundred_ok = "200 OK \n"
 conn = sqlite3.connect('test.db')
 # Precondtion: the user and stock tables are created. stock_symbol is a string. amount, price, and user_id are integers
@@ -122,16 +126,20 @@ def shutdown():
     s.close()
 
 
-def errorcheck(stock_symbol, amount, price, user_id):
+def errorcheck(stock_symbol, i_amount, i_price, i_user_id):
     global message
-    if( stock_symbol.length() >= 5 and stock_symbol.isalpha()):
+    global amount
+    global price
+    global user_id
+
+    if( not (len(stock_symbol) <= 5 and stock_symbol.isalpha())):
         message    = "403 Invalid format stock symbol doesn't exist"
         return False
-    elif (amount.isnumeric() and price.isnumeric() and user_id.isnumeric()):
+    elif (not (i_amount.isnumeric() and i_price.isnumeric() and i_user_id.isnumeric())):
         message = "403 Invalid format number is needed not a char"
         return False
     else :
-        amount = int(amount)
+        amount = int(i_amount)
         price = int(price)
         user_id = int(user_id)
         return True
