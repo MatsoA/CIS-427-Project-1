@@ -143,9 +143,12 @@ def shutdown():
 
 
 def errorcheck(stock_symbol, amount, price, user_id):
+    global message
     if( stock_symbol.length() >= 5 and stock_symbol.isalpha()):
+        message    = "403 Invalid format stock symbol doesn't exist"
         return False
     elif (amount.isnumeric() and price.isnumeric() and user_id.isnumeric()):
+        message = "403 Invalid format number is needed not a char"
         return False
     else :
         amount = int(amount)
