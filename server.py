@@ -2,6 +2,7 @@ import socket
 import sqlite3
 message = ""
 response = ""
+command = ""
 two_hundred_ok = "200 OK \n"
 conn = sqlite3.connect('test.db')
 
@@ -9,6 +10,7 @@ conn = sqlite3.connect('test.db')
 # Postcondtion: the buy stock is serviced
 
 def buy(stock_symbol, amount, price, user_id):
+    print("buy")
     total = amount * price # amount of stocks * price of each stock
     global message # declaring message is a global variable
 
@@ -92,7 +94,7 @@ def sell(stock_symbol, amount, price, user_id):
 # Precondtions: User and Stock Tables are created
 # Postcondtions: All stock records are listed
 
-def list():
+def print_list():
     cursor = conn.execute("Select * FROM USERS")
     records = cursor.fetchall()
     global message
@@ -114,8 +116,8 @@ def list():
 
     return None
 
-# Precondtions: User and Stock Tables are created
-# Postcondtions: All user balance records are listed
+# Preconditions: User and Stock Tables are created
+# Postconditions: All user balance records are listed
 
 def balance():
     cursor = conn.execute("Select * FROM USERS")
@@ -128,6 +130,16 @@ def balance():
     else: # there are not users in the database
         message = "403: There are no users in the database."
     return None
+
+# Preconditions: Client connected to Server
+# Postconditions: Client socket is closed, server closes and program ends
+
+def shutdown():
+    message = "200 OK"
+    clientSocket.send(message.encode('ascii'))
+
+    clientSocket.close()
+    s.close()
 
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -166,8 +178,8 @@ conn.commit()
 buy("TSLA",1,3,1)
 buy("APPLE",1,3,1)
 buy("Ford",1,3,1)
-list()
-balance()
+#list()
+#balance()
 
 cursor = conn.execute("SELECT ID, first_name, last_name, user_name, password, usd_balance from USERS")
 for row in cursor:
@@ -190,28 +202,63 @@ for row in cursor:
 print("\n" + message)
 
 print("Opened database successfully")
-while True:
-    #wait for client to connect
+
+while command != "SHUTDOWN":
+
+    #wait for new client to connect
     clientSocket, address = s.accept()
     print("Connection established from address " + str(address))
 
-    #loop represents client's session with server
-    while response != "SHUTDOWN": 
-        #here for testing, should be deleted once switchboard is complete
-        sell('TSLA', 0, 10, 1)
 
-        #wait for command from client
-        response = clientSocket.recv(2018).decode('ascii')
-        print(response)
+    #loop represents client's session with server
+    while command != "QUIT": 
+
+        #wait for input from client
+        response = clientSocket.recv(2018).decode('ascii').split()
+
+        print("Response: %s" % response)
         
+        #parse input into commands and parameters
+        for index, token in enumerate(response):
+            if (index == 0):
+                command = str(token)
+            if (index == 1):
+                stock_symbol = str(token)
+            if (index == 2):
+                amount = int(token)
+            if (index == 3): 
+                price = int(token)
+            if (index == 4):
+                user_id = int(token)
+        
+        print("Command: %s" % command)
+
         #switchboard for responses. add other cases here
-        if(response == "SHUTDOWN"):
-            message = "Bye"
+        if(command == "SHUTDOWN"):
+            shutdown()
+            break
+        elif(command == "QUIT"):
+            print("client disconnected")
+            command = ""
+            break
+        elif(command == "LIST"):
+            print_list()
+        elif(command == "BALANCE"):
+            balance()
+        elif(command == "BUY"):
+            buy(stock_symbol, amount, price, user_id)
+        elif(command == "SELL"):
+            sell(stock_symbol, amount, price, user_id)
        
         #send response back to client
         clientSocket.send(message.encode('ascii'))
         
-    #reset for next client
-    response = ""
+        #reset string holders 
+        message = "400 Invalid Command"
+        response = ""
+
+
     clientSocket.close()
+
+
 conn.close()
