@@ -142,6 +142,17 @@ def shutdown():
     s.close()
 
 
+def errorcheck(stock_symbol, amount, price, user_id):
+    if( stock_symbol.length() >= 5 and stock_symbol.isalpha()):
+        return False
+    elif (amount.isnumeric() and price.isnumeric() and user_id.isnumeric()):
+        return False
+    else :
+        amount = int(amount)
+        price = int(price)
+        user_id = int(user_id)
+        return True
+
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((socket.gethostname(),3108))
 s.listen(5)
@@ -217,38 +228,45 @@ while command != "SHUTDOWN":
         response = clientSocket.recv(2018).decode('ascii').split()
 
         print("Response: %s" % response)
-        
+        stock_symbol = None
+        user_id = None
+
         #parse input into commands and parameters
         for index, token in enumerate(response):
             if (index == 0):
-                command = str(token)
+                command = str(token).upper()
             if (index == 1):
-                stock_symbol = str(token)
+                stock_symbol = str(token).upper()
             if (index == 2):
-                amount = int(token)
+                amount = str(token)
             if (index == 3): 
-                price = int(token)
+                price = str(token)
             if (index == 4):
-                user_id = int(token)
+                user_id = str(token)
         
         print("Command: %s" % command)
 
+        if(stock_symbol is None):
+            print("\nworks\n")
+
         #switchboard for responses. add other cases here
-        if(command == "SHUTDOWN"):
+        if(command == "SHUTDOWN" and stock_symbol is None):
             shutdown()
             break
-        elif(command == "QUIT"):
+        elif(command == "QUIT" and stock_symbol is None):
             print("client disconnected")
             command = ""
             break
-        elif(command == "LIST"):
+        elif(command == "LIST" and stock_symbol is None ):
             print_list()
-        elif(command == "BALANCE"):
+        elif(command == "BALANCE" and stock_symbol is None):
             balance()
-        elif(command == "BUY"):
-            buy(stock_symbol, amount, price, user_id)
-        elif(command == "SELL"):
-            sell(stock_symbol, amount, price, user_id)
+        elif(command == "BUY" and user_id is not None):
+            if(errorcheck(stock_symbol, amount, price, user_id)):
+                buy(stock_symbol, amount, price, user_id)
+        elif(command == "SELL" and user_id is not None):
+            if(errorcheck(stock_symbol, amount, price, user_id)):
+                sell(stock_symbol, amount, price, user_id)
        
         #send response back to client
         clientSocket.send(message.encode('ascii'))

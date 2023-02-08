@@ -11,7 +11,7 @@ while True:
     message = input(">> ")
     response = ""
     s.send(message.encode('ascii'))
-
+    message = message.upper()
     if (message == "QUIT"):
         break
     if (message == "SHUTDOWN"):
