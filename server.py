@@ -1,18 +1,23 @@
 import socket
 import sqlite3
-message = ""
-response = ""
-command = ""
-amount = ""
-price = ""
-user_id = ""
+import random
+global message
+global amount
+global price
+global user_id
+port = 3107 # Socket port number
+message = "" # message sent to the client
+response = "" # response from the client
+command = "" # command from the client
+amount = "" # amount of stocks from client arguments
+price = "" # price of stocks from client arguments
+user_id = "" # user ID from client arguments
 
 two_hundred_ok = "200 OK \n"
-conn = sqlite3.connect('test.db')
+conn = sqlite3.connect('dataBase.db')
 # Precondtion: the user and stock tables are created. stock_symbol is a string. amount, price, and user_id are integers
 # Postcondtion: the buy stock is serviced
 def buy(stock_symbol, amount, price, user_id):
-    print("buy")
     total = amount * price # amount of stocks * price of each stock
     global message # declaring message is a global variable
     # creating sub databases for error checking
@@ -44,6 +49,8 @@ def buy(stock_symbol, amount, price, user_id):
             conn.commit()
             message = two_hundred_ok + "BOUGHT: New balance: " + str(float(cursor3.fetchall()[0][0])) + " " + str(stock_symbol) + ". USD balance $" + str(balance - total)
             return None
+
+
 # Precondtion: the user and stock tables are created. stock_symbol is a string. amount, price, and user_id are integers
 # Postcondtion: the sell stock is serviced
 def sell(stock_symbol, amount, price, user_id):
@@ -73,7 +80,7 @@ def sell(stock_symbol, amount, price, user_id):
             conn.commit()
             conn.execute("UPDATE USERS SET usd_balance = (usd_balance + " + str(total) + ") WHERE ID = " + str(user_id))
             conn.commit()
-            message = two_hundred_ok + "SOLD: New balance: " + str(stock_balance - amount) + " " + str(stock_symbol) + ". USD balance $" + str(balance - total)
+            message = two_hundred_ok + "SOLD: New balance: " + str(stock_balance - amount) + " " + str(stock_symbol) + ". USD balance $" + str(balance + total)
             return None
         else: # user DOES own stocks of stock_symbol, update stock amount 
             conn.execute("UPDATE STOCKS SET stock_balance = (stock_balance - " + str(amount) + ") WHERE stock_symbol = '" + str(stock_symbol + "' AND user_id = ") + str(user_id))
@@ -82,6 +89,8 @@ def sell(stock_symbol, amount, price, user_id):
             conn.commit()
             message = two_hundred_ok + "SOLD: New balance: " + str(stock_balance - amount) + " " + str(stock_symbol) + ". USD balance $" + str(balance + total)
             return None  
+
+
 # Precondtions: User and Stock Tables are created
 # Postcondtions: All stock records are listed
 def print_list():
@@ -104,6 +113,8 @@ def print_list():
     else: # there are not users in the database
         message = "403: There are no users in the database."
     return None
+
+
 # Preconditions: User and Stock Tables are created
 # Postconditions: All user balance records are listed
 def balance():
@@ -117,35 +128,55 @@ def balance():
     else: # there are not users in the database
         message = "403: There are no users in the database."
     return None
+
+
 # Preconditions: Client connected to Server
 # Postconditions: Client socket is closed, server closes and program ends
 def shutdown():
     message = "200 OK"
-    clientSocket.send(message.encode('ascii'))
-    clientSocket.close()
+    clientSocket.send(message.encode('ascii')) # Notifies client that program ends
+    clientSocket.close() # Close Client Socket
     s.close()
 
+# Precondtions: USERS table is created
+# Postcondtions: a new user which a random name is generated. Since the client cannot declare their names, we will randomly generate them since balance command reveals user's names
+def  create_user():
+    names = ["John", "Doe", "April", "Summer", "James", "Robert", "Elizabeth", "Jobs", "Robert", "David", "Mary", "Linda"]
+    conn.execute("INSERT INTO USERS (first_name,last_name,user_name,password, usd_balance) \
+      VALUES ('" + str(names[random.randint(0,11)]) + "', '" + str(names[random.randint(0,11)]) + "', 'user_name', 'password', 100)"); # pushes new user into the user table
+    conn.commit()
+    return None
 
+
+# Precondtions: stock_symbol, i_amount, i_price, i_user_id are user inputs
+# Postcondtions: determmines if there is any syntax error, if not, type casts user inputs for use for command functions
 def errorcheck(stock_symbol, i_amount, i_price, i_user_id):
     global message
     global amount
     global price
     global user_id
 
-    if( not (len(stock_symbol) <= 5 and stock_symbol.isalpha())):
-        message    = "403 Invalid format stock symbol doesn't exist"
+    if( not (len(stock_symbol) <= 5 and stock_symbol.isalpha())): # invalid stock_symbol
+        print("RECEIVED: Invalid Command: Invalid Stock Symbol\n")
+        message = "403: Invalid Format or Stock Symbol Doesn't Exist"
         return False
-    elif (not (i_amount.isnumeric() and i_price.isnumeric() and i_user_id.isnumeric())):
-        message = "403 Invalid format number is needed not a char"
+    elif (not (i_amount.isnumeric() and i_price.isnumeric() and i_user_id.isnumeric())): # invalid numeric arguments
+        print("RECEIVED: Invalid Command: Invalid Numeric Arguments\n")
+        message = "403: Invalid Format for BUY or SELL Command Arguments"
         return False
-    else :
+    else : # valid inputs so typecast to correct type
         amount = int(i_amount)
-        price = int(price)
+        price = float(price)
         user_id = int(user_id)
         return True
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind((socket.gethostname(),3108))
-s.listen(5)
+
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # creates socket
+s.bind((socket.gethostname(),port)) # bind socket to part 
+s.listen(5) # server starts listening
+
+
+# Creates the tables if they don't exist
 conn.execute('''CREATE TABLE IF NOT EXISTS USERS(
     ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     first_name varchar(255), 
@@ -164,47 +195,25 @@ conn.execute('''CREATE TABLE IF NOT EXISTS STOCKS(
     FOREIGN KEY (user_id) REFERENCES USERS(ID) 
     );'''
     )
+    
+
 # Enforces foreign keys, not on by default.
 conn.execute("pragma foreign_keys = ON;")
-# Generates first user and assigns first stock
-conn.execute("INSERT INTO USERS (first_name,last_name,user_name,password, usd_balance) \
-      VALUES ('John', 'Doe', 'JDoe', 'password', 100)");
-conn.commit()
-#  Test Cases Here:
-buy("TSLA",1,3,1)
-buy("APPLE",1,3,1)
-buy("Ford",1,3,1)
-#list()
-#balance()
-cursor = conn.execute("SELECT ID, first_name, last_name, user_name, password, usd_balance from USERS")
-for row in cursor:
-    print("ID = " + str(row[0]))
-    print ("first_name = " + str(row[1]))
-    print ("last_name = " + str(row[2]))
-    print ("user_name = " + str(row[3]))
-    print ("password = " + str(row[4]))
-    print ("usd_balance = "+ str(row[5]))
-print("\n")
-cursor = conn.execute("SELECT * from STOCKS")
-for row in cursor:
-    print("ID = " + str(row[0]))
-    print ("stock_symbol = " + str(row[1]))
-    print ("stock_name = "+ str(row[2]))
-    print ("stock_balance = "+ str(row[3]))
-    print ("user_id = "+ str(row[4]))
-print("\n" + message)
-print("Opened database successfully")
+
+
 while command != "SHUTDOWN":
     #wait for new client to connect
     clientSocket, address = s.accept()
-    print("Connection established from address " + str(address))
+#    print("Connection established from address " + str(address))
+    create_user()
     #loop represents client's session with server
     while command != "QUIT": 
         #wait for input from client
         response = clientSocket.recv(2018).decode('ascii').split()
-        print("Response: %s" % response)
         stock_symbol = None
         user_id = None
+
+
         #parse input into commands and parameters
         for index, token in enumerate(response):
             if (index == 0):
@@ -217,32 +226,39 @@ while command != "SHUTDOWN":
                 price = str(token)
             if (index == 4):
                 user_id = str(token)
-        
-        print("Command: %s" % command)
-        #switchboard for responses. add other cases here
+
+
+        #  Command Switch Board. Executes user command by calling corrosponding command function
         if(command == "SHUTDOWN" and stock_symbol is None):
+            print("Received: SHUTDOWN\n")
             shutdown()
             break
         elif(command == "QUIT" and stock_symbol is None):
-            print("client disconnected")
             command = ""
             break
         elif(command == "LIST" and stock_symbol is None ):
+            print("Received: LIST\n")
             print_list()
         elif(command == "BALANCE" and stock_symbol is None):
+            print("Received: BALANCE\n")
             balance()
         elif(command == "BUY" and user_id is not None):
             if(errorcheck(stock_symbol, amount, price, user_id)):
+                print("Received: BUY " + stock_symbol + " " + str(amount) + " " + str(price) + " " + str(user_id) + "\n")
                 buy(stock_symbol, amount, price, user_id)
         elif(command == "SELL" and user_id is not None):
             if(errorcheck(stock_symbol, amount, price, user_id)):
+                print("Received: SELL " + stock_symbol + " " + str(amount) + " " + str(price) + " " + str(user_id) + "\n")
                 sell(stock_symbol, amount, price, user_id)
-       
+
+
         #send response back to client
         clientSocket.send(message.encode('ascii'))
         
         #reset string holders 
         message = "400 Invalid Command"
         response = ""
-    clientSocket.close()
-conn.close()
+    clientSocket.close() # close the socket
+
+
+conn.close() # close the database
