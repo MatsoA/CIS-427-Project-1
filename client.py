@@ -2,12 +2,12 @@ import socket
 import sys
 port = 3107
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ## creates socket
-s.connect((socket.gethostname(), port)) ## Connects to the socket at port number
+s.connect((sys.argv[1], port)) ## Connects to the socket at port number
 response = ""
 message = ""
 while True:
 #   send command to server
-    message = input(">> ")
+    message = input(">> ").upper()
     response = ""
     s.send(message.encode('ascii'))
 

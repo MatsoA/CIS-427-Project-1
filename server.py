@@ -6,7 +6,7 @@ global amount
 global price
 global user_id
 port = 3107 # Socket port number
-message = "" # message sent to the client
+message = "400 Invalid Message" # message sent to the client
 response = "" # response from the client
 command = "" # command from the client
 amount = "" # amount of stocks from client arguments
@@ -217,9 +217,9 @@ while command != "SHUTDOWN":
         #parse input into commands and parameters
         for index, token in enumerate(response):
             if (index == 0):
-                command = str(token).upper()
+                command = str(token)
             if (index == 1):
-                stock_symbol = str(token).upper()
+                stock_symbol = str(token)
             if (index == 2):
                 amount = str(token)
             if (index == 3): 
@@ -250,6 +250,7 @@ while command != "SHUTDOWN":
             if(errorcheck(stock_symbol, amount, price, user_id)):
                 print("Received: SELL " + stock_symbol + " " + str(amount) + " " + str(price) + " " + str(user_id) + "\n")
                 sell(stock_symbol, amount, price, user_id)
+
 
 
         #send response back to client
