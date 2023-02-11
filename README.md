@@ -2,9 +2,11 @@ CIS 427 PROJECT 1
 
 CODED BY:
     Hadi Zalzali
+        - Database operations such as LIST, BALANCE, BUY, and SELL
     Jaxon Pecora
+        - User / Client Socket, Exception handling
     Matthew Alexander
-
+        - User / Client Socket, QUIT and SHUTDOWN, and Command Switchboard
 TECHNOLOGIES USED:
     Python 3
     sqlite
@@ -16,7 +18,8 @@ Download both python scripts to the same folder:
 
 Navigate to that folder in a terminal and run `python server.py`
 
-While leaving that terminal running, open a new terminal window and navigate to the folder and run `python client.py` 
+While leaving that terminal running, open a new terminal window and navigate to the folder and run `python client.py hostname`
+Note: to find the hostname of an ubuntu machine, type hostname in the ubuntu terminal(use this for the hostname argument).  
 
 You should now be able to input commands to the server:
 
