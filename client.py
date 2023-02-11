@@ -5,6 +5,7 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ## creates socket
 s.connect((sys.argv[1], port)) ## Connects to the socket at port number
 response = ""
 message = ""
+
 while True:
 #   send command to server
     message = input(">> ").upper()
@@ -21,4 +22,5 @@ while True:
     #read response from server
     response = s.recv(6000).decode('ascii')
     print(response)
+    
 s.close()

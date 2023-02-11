@@ -204,7 +204,7 @@ conn.execute("pragma foreign_keys = ON;")
 while command != "SHUTDOWN":
     #wait for new client to connect
     clientSocket, address = s.accept()
-#    print("Connection established from address " + str(address))
+#   print("Connection established from address " + str(address))
     create_user()
     #loop represents client's session with server
     while command != "QUIT": 
