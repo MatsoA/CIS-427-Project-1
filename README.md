@@ -1,4 +1,4 @@
-CIS 427 PROJECT 1
+# CIS 427 PROJECT 1
 
 CODED BY:
     Hadi Zalzali
@@ -12,8 +12,9 @@ TECHNOLOGIES USED:
     sqlite
 
 VIDEO DEMONSTRATION: https://www.youtube.com/watch?v=BzEgLbrOrXk
+GITHUB: https://github.com/MatsoA/CIS-427-Project-1
 
-To run:
+## To run:
 Download both python scripts to the same folder:
     server.py
     client.py
