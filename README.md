@@ -11,6 +11,8 @@ TECHNOLOGIES USED:
     Python 3
     sqlite
 
+VIDEO DEMONSTRATION: https://www.youtube.com/watch?v=BzEgLbrOrXk
+
 To run:
 Download both python scripts to the same folder:
     server.py
