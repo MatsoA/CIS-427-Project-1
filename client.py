@@ -1,8 +1,26 @@
 import socket
 import sys
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((socket.gethostname(), 3108))
+port = 3107
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ## creates socket
+s.connect((sys.argv[1], port)) ## Connects to the socket at port number
+response = ""
+message = ""
 
-message = s.recv(2108)
+while True:
+#   send command to server
+    message = input(">> ").upper()
+    response = ""
+    s.send(message.encode('ascii'))
 
-print(str(message))
+#   message = message.upper()
+    if (message == "QUIT"): ## QUIT stops client
+        break
+    if (message == "SHUTDOWN"): ## SHUTDOWN stops server
+        s.shutdown(1) #indicates client is done sending but will wait for a final receive
+        print(s.recv(2108).decode('ascii'))
+        break
+    #read response from server
+    response = s.recv(6000).decode('ascii')
+    print(response)
+    
+s.close()

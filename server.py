@@ -6,7 +6,9 @@ global message
 global amount
 global price
 global user_id
-port = 3106 # Socket port number
+
+port = 3107 # Socket port number
+
 message = "400 Invalid Message" # message sent to the client
 response = "" # response from the client
 command = "" # command from the client
@@ -52,6 +54,7 @@ def buy(stock_symbol, amount, price, user_id):
             return message
 
 
+
 # Precondtion: the user and stock tables are created. stock_symbol is a string. amount, price, and user_id are integers
 # Postcondtion: the sell stock is serviced
 def sell(stock_symbol, amount, price, user_id):
@@ -92,6 +95,7 @@ def sell(stock_symbol, amount, price, user_id):
             return message  
 
 
+
 # Precondtions: User and Stock Tables are created
 # Postcondtions: All stock records are listed
 def print_list():
@@ -113,8 +117,6 @@ def print_list():
     else: # there are not users in the database
         message = "403: There are no users in the database."
     return message
-
-
 # Preconditions: User and Stock Tables are created
 # Postconditions: All user balance records are listed
 def balance():
@@ -230,7 +232,6 @@ while command != "SHUTDOWN":
         response = clientSocket.recv(2018).decode('ascii').split()
         stock_symbol = None
         user_id = None
-
         #reset string holders 
         message = "400 Invalid Command"
 
@@ -276,8 +277,6 @@ while command != "SHUTDOWN":
             else:
                 message = errorcheck(stock_symbol, amount, price, user_id)[1]
                 print(errorcheck(stock_symbol, amount, price, user_id)[2])
-
-
 
         #send response back to client
         clientSocket.send(message.encode('ascii'))
