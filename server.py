@@ -1,8 +1,5 @@
 import socket
 import sqlite3
-<<<<<<< Updated upstream
-message = ""
-=======
 import random
 import threading
 global message
@@ -17,36 +14,21 @@ amount = "" # amount of stocks from client arguments
 price = "" # price of stocks from client arguments
 user_id = "" # user ID from client arguments
 
->>>>>>> Stashed changes
 two_hundred_ok = "200 OK \n"
-conn = sqlite3.connect('test.db')
-
+conn = sqlite3.connect('dataBase.db')
 # Precondtion: the user and stock tables are created. stock_symbol is a string. amount, price, and user_id are integers
 # Postcondtion: the buy stock is serviced
-
 def buy(stock_symbol, amount, price, user_id):
     total = amount * price # amount of stocks * price of each stock
-<<<<<<< Updated upstream
-    global message # declaring message is a global variable
-
-=======
     message = "" # creating message variable
->>>>>>> Stashed changes
     # creating sub databases for error checking
     cursor = conn.execute("SELECT * FROM USERS WHERE ID = " + str(user_id))
     cursor2 = conn.execute("SELECT usd_balance FROM USERS WHERE ID = " + str(user_id))
     cursor3 = conn.execute("SELECT stock_balance FROM STOCKS WHERE ID = " + str(user_id) + " AND '" + str(stock_symbol) + "'")
-
     if (len(cursor.fetchall()) == 0): # user id has not enteries in USER table
         message = "403: User " + str(user_id) + " does not exist"
-<<<<<<< Updated upstream
-        return None
-
-=======
         return message
->>>>>>> Stashed changes
     balance = float(cursor2.fetchall()[0][0]) # balance for current user
-
     if(balance < total): # the total price exceeds the balance for the user
         message = "403: Insufficent Balance"
         return message
@@ -69,38 +51,26 @@ def buy(stock_symbol, amount, price, user_id):
             message = two_hundred_ok + "BOUGHT: New balance: " + str(float(cursor3.fetchall()[0][0])) + " " + str(stock_symbol) + ". USD balance $" + str(balance - total)
             return message
 
+
 # Precondtion: the user and stock tables are created. stock_symbol is a string. amount, price, and user_id are integers
 # Postcondtion: the sell stock is serviced
-
 def sell(stock_symbol, amount, price, user_id):
     total = amount * price # amount of stocks * price of each stock
-<<<<<<< Updated upstream
-    global message # declaring message is a global variable
-
-=======
     message = "" # creating message variable
->>>>>>> Stashed changes
     # creating sub databases for error checking
     cursor = conn.execute("SELECT * FROM USERS WHERE ID = " + str(user_id))
     cursor2 = conn.execute("SELECT stock_balance FROM STOCKS WHERE user_id = " + str(user_id) + " AND stock_symbol = '" + str(stock_symbol) + "'")
     cursor3 = conn.execute("SELECT stock_balance FROM STOCKS WHERE user_id = " + str(user_id) + " AND stock_symbol = '" + str(stock_symbol) + "'")
     cursor4 = conn.execute("SELECT usd_balance FROM USERS WHERE ID = " + str(user_id))
-
     owned_stock_balance = cursor3.fetchall() # list of current ownded stock balanced for the associated stock_symbol
     if (len(cursor.fetchall()) == 0): # user id has not enteries in USER table
         message = "403: User " + str(user_id) + " does not exist"
         return message
     elif(len(owned_stock_balance) == 0): # list containing stocks owned by user is empty for according stock_symbol.
         message = "403: User " + str(user_id) + " does not own any stock with symbol: " + stock_symbol
-<<<<<<< Updated upstream
-        return None
-
-=======
         return message
->>>>>>> Stashed changes
     balance = float(cursor4.fetchall()[0][0]) # balance for current user
     stock_balance = float(cursor2.fetchall()[0][0]) # stock_balance for the current user for the associated stock_symbol
-
     if(amount > stock_balance): # the amount of stocks to be sold is larger than stock balance
         message = "403: Insufficent Stock Balance"
         return message
@@ -111,13 +81,8 @@ def sell(stock_symbol, amount, price, user_id):
             conn.commit()
             conn.execute("UPDATE USERS SET usd_balance = (usd_balance + " + str(total) + ") WHERE ID = " + str(user_id))
             conn.commit()
-<<<<<<< Updated upstream
-            message = two_hundred_ok + "SOLD: New balance: " + str(stock_balance - amount) + " " + str(stock_symbol) + ". USD balance $" + str(balance - total)
-            return None
-=======
             message = two_hundred_ok + "SOLD: New balance: " + str(stock_balance - amount) + " " + str(stock_symbol) + ". USD balance $" + str(balance + total)
             return message
->>>>>>> Stashed changes
         else: # user DOES own stocks of stock_symbol, update stock amount 
             conn.execute("UPDATE STOCKS SET stock_balance = (stock_balance - " + str(amount) + ") WHERE stock_symbol = '" + str(stock_symbol + "' AND user_id = ") + str(user_id))
             conn.commit()
@@ -126,10 +91,10 @@ def sell(stock_symbol, amount, price, user_id):
             message = two_hundred_ok + "SOLD: New balance: " + str(stock_balance - amount) + " " + str(stock_symbol) + ". USD balance $" + str(balance + total)
             return message  
 
+
 # Precondtions: User and Stock Tables are created
 # Postcondtions: All stock records are listed
-
-def list():
+def print_list():
     cursor = conn.execute("Select * FROM USERS")
     records = cursor.fetchall()
     message = two_hundred_ok 
@@ -147,16 +112,11 @@ def list():
                     message += "\tUser does not own any stock\n"  
     else: # there are not users in the database
         message = "403: There are no users in the database."
-<<<<<<< Updated upstream
-
-    return None
-=======
     return message
->>>>>>> Stashed changes
 
-# Precondtions: User and Stock Tables are created
-# Postcondtions: All user balance records are listed
 
+# Preconditions: User and Stock Tables are created
+# Postconditions: All user balance records are listed
 def balance():
     cursor = conn.execute("Select * FROM USERS")
     records = cursor.fetchall()
@@ -169,12 +129,6 @@ def balance():
     return message
 
 
-<<<<<<< Updated upstream
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind((socket.gethostname(),3108))
-s.listen(5)
-
-=======
 # Preconditions: Client connected to Server
 # Postconditions: Client socket is closed, server closes and program ends
 def shutdown():
@@ -241,7 +195,6 @@ s.listen(5) # server starts listening
 
 
 # Creates the tables if they don't exist
->>>>>>> Stashed changes
 conn.execute('''CREATE TABLE IF NOT EXISTS USERS(
     ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     first_name varchar(255), 
@@ -251,7 +204,6 @@ conn.execute('''CREATE TABLE IF NOT EXISTS USERS(
     usd_balance DOUBLE NOT NULL 
     );'''
     )
-
 conn.execute('''CREATE TABLE IF NOT EXISTS STOCKS(
     ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     stock_symbol varchar(4) NOT NULL, 
@@ -261,53 +213,24 @@ conn.execute('''CREATE TABLE IF NOT EXISTS STOCKS(
     FOREIGN KEY (user_id) REFERENCES USERS(ID) 
     );'''
     )
+    
+
 # Enforces foreign keys, not on by default.
 conn.execute("pragma foreign_keys = ON;")
 
-# Generates first user and assigns first stock
-conn.execute("INSERT INTO USERS (first_name,last_name,user_name,password, usd_balance) \
-      VALUES ('John', 'Doe', 'JDoe', 'password', 100)");
-conn.commit()
 
-
-#  Test Cases Here:
-buy("TSLA",1,3,1)
-buy("APPLE",1,3,1)
-buy("Ford",1,3,1)
-list()
-balance()
-
-cursor = conn.execute("SELECT ID, first_name, last_name, user_name, password, usd_balance from USERS")
-for row in cursor:
-    print("ID = " + str(row[0]))
-    print ("first_name = " + str(row[1]))
-    print ("last_name = " + str(row[2]))
-    print ("user_name = " + str(row[3]))
-    print ("password = " + str(row[4]))
-    print ("usd_balance = "+ str(row[5]))
-print("\n")
-cursor = conn.execute("SELECT * from STOCKS")
-for row in cursor:
-    print("ID = " + str(row[0]))
-    print ("stock_symbol = " + str(row[1]))
-    print ("stock_name = "+ str(row[2]))
-    print ("stock_balance = "+ str(row[3]))
-    print ("user_id = "+ str(row[4]))
-
-
-print("\n" + message)
-
-print("Opened database successfully")
-while False:
+while command != "SHUTDOWN":
+    #wait for new client to connect
     clientSocket, address = s.accept()
-    print("Connection established from address " + str(address))
-    #handleRequest(string)
-    clientSocket.send(bytes(message))
-    clientSocket.close()
+#   print("Connection established from address " + str(address))
+    create_user()
+    #loop represents client's session with server
+    while command != "QUIT": 
+        #wait for input from client
+        response = clientSocket.recv(2018).decode('ascii').split()
+        stock_symbol = None
+        user_id = None
 
-<<<<<<< Updated upstream
-conn.close()
-=======
         #reset string holders 
         message = "400 Invalid Command"
 
@@ -366,4 +289,3 @@ conn.close()
 
 
 conn.close() # close the database
->>>>>>> Stashed changes
