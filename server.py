@@ -6,21 +6,22 @@ global message
 global amount
 global price
 global user_id
-
-port = 3107 # Socket port number
-
+global command
+global isShutDown
+isShutDown = False
+port = 8232# Socket port number
 message = "400 Invalid Message" # message sent to the client
 response = "" # response from the client
 command = "" # command from the client
 amount = "" # amount of stocks from client arguments
 price = "" # price of stocks from client arguments
 user_id = "" # user ID from client arguments
+mutex = threading.Lock()
 
 two_hundred_ok = "200 OK \n"
-conn = sqlite3.connect('dataBase.db')
 # Precondtion: the user and stock tables are created. stock_symbol is a string. amount, price, and user_id are integers
 # Postcondtion: the buy stock is serviced
-def buy(stock_symbol, amount, price, user_id):
+def buy(stock_symbol, amount, price, user_id,conn):
     total = amount * price # amount of stocks * price of each stock
     message = "" # creating message variable
     # creating sub databases for error checking
@@ -54,10 +55,9 @@ def buy(stock_symbol, amount, price, user_id):
             return message
 
 
-
 # Precondtion: the user and stock tables are created. stock_symbol is a string. amount, price, and user_id are integers
 # Postcondtion: the sell stock is serviced
-def sell(stock_symbol, amount, price, user_id):
+def sell(stock_symbol, amount, price, user_id,conn):
     total = amount * price # amount of stocks * price of each stock
     message = "" # creating message variable
     # creating sub databases for error checking
@@ -95,10 +95,10 @@ def sell(stock_symbol, amount, price, user_id):
             return message  
 
 
-
 # Precondtions: User and Stock Tables are created
 # Postcondtions: All stock records are listed
-def print_list():
+def print_list(conn):
+    #mutex.acquire()
     cursor = conn.execute("Select * FROM USERS")
     records = cursor.fetchall()
     message = two_hundred_ok 
@@ -116,10 +116,13 @@ def print_list():
                     message += "\tUser does not own any stock\n"  
     else: # there are not users in the database
         message = "403: There are no users in the database."
+    #mutex.release()    
     return message
+
+
 # Preconditions: User and Stock Tables are created
 # Postconditions: All user balance records are listed
-def balance():
+def balance(conn):
     cursor = conn.execute("Select * FROM USERS")
     records = cursor.fetchall()
     message = two_hundred_ok 
@@ -133,16 +136,23 @@ def balance():
 
 # Preconditions: Client connected to Server
 # Postconditions: Client socket is closed, server closes and program ends
-def shutdown():
+def shutdown(clientSocket):
+    global isShutDown
+    global threads
     message = "200 OK"
     clientSocket.send(message.encode('ascii')) # Notifies client that program ends
-    clientSocket.close() # Close Client Socket
+    #for socket in workers:
+    #    socket.close() # Close Client Socket
+    clientSocket.close()
     s.close()
+    isShutDown = True
+    #for thread in threads:
+    #   thread.join()
     return message
 
 # Precondtions: USERS table is created
 # Postcondtions: The four users are created, if they already exists, no users are created
-def  create_user():
+def  create_user(conn):
     #names = ["John", "Doe", "April", "Summer", "James", "Robert", "Elizabeth", "Jobs", "Robert", "David", "Mary", "Linda"]
     # conn.execute("INSERT INTO USERS (first_name,last_name,user_name,password, usd_balance) \
     #   VALUES ('" + str(names[random.randint(0,11)]) + "', '" + str(names[random.randint(0,11)]) + "', 'user_name', 'password', 100)"); # pushes new user into the user table
@@ -172,9 +182,8 @@ def  create_user():
 # Postcondtions: determmines if there is any syntax error, if not, type casts user inputs for use for command functions
 def errorcheck(stock_symbol, i_amount, i_price, i_user_id):
     message = ""
-    global amount
-    global price
-    global user_id
+    amount = 0
+    user_id = 0
 
     if( not (len(stock_symbol) <= 5 and stock_symbol.isalpha())): # invalid stock_symbol
         error = "RECEIVED: Invalid Command: Invalid Stock Symbol\n"
@@ -186,16 +195,42 @@ def errorcheck(stock_symbol, i_amount, i_price, i_user_id):
         return (False, message, error)
     else : # valid inputs so typecast to correct type
         amount = int(i_amount)
-        price = float(price)
-        user_id = int(user_id)
-        return (True, "accepted", "no error")
+        price = float(i_price)
+        user_id = int(i_user_id)
+        return (True, "accepted", "no error", amount, price, user_id)
 
+def log_in(userName, password, conn):
+    cursor = conn.execute("Select user_name , password FROM USERS")
+    conn.commit()
+    user_list = cursor.fetchall()
+    match = False
+    try:
+        #print(user_list)
+        match = (userName, password) in user_list
+    except:
+        print("error")
+
+    if match == True:
+
+        return (match, "200 OK")
+    else:
+        return (match, "403: Invalid User Name or Password")
+    
+def log_out():
+    try:
+        if isLoggedIn.my_data == True:
+            isLoggedIn.my_data = False
+            return "200 OK"
+        else:
+            return "403: Already Not Logged In"
+    except:
+        return "403: Already Not Logged In" # thread not created yet, log in did not occur yet
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # creates socket
 s.bind((socket.gethostname(),port)) # bind socket to part 
 s.listen(5) # server starts listening
 
-
+conn = sqlite3.connect('dataBase.db')
 # Creates the tables if they don't exist
 conn.execute('''CREATE TABLE IF NOT EXISTS USERS(
     ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -216,22 +251,28 @@ conn.execute('''CREATE TABLE IF NOT EXISTS STOCKS(
     );'''
     )
     
-
+create_user(conn)
 # Enforces foreign keys, not on by default.
 conn.execute("pragma foreign_keys = ON;")
+conn.close() # close the database
 
-
-while command != "SHUTDOWN":
-    #wait for new client to connect
-    clientSocket, address = s.accept()
-#   print("Connection established from address " + str(address))
-    create_user()
+def serve_request(clientSocket):
     #loop represents client's session with server
-    while command != "QUIT": 
+    global command
+    global message
+    global isShutDown
+    command = ""
+    amount = 0
+    price = 0
+    user_id = 0
+    isLoggedIn.my_data = False
+
+    while command != "QUIT" and isShutDown == False: 
         #wait for input from client
         response = clientSocket.recv(2018).decode('ascii').split()
         stock_symbol = None
         user_id = None
+
         #reset string holders 
         message = "400 Invalid Command"
 
@@ -252,31 +293,64 @@ while command != "SHUTDOWN":
         #  Command Switch Board. Executes user command by calling corrosponding command function
         if(command == "SHUTDOWN" and stock_symbol is None):
             print("Received: SHUTDOWN\n")
-            message = shutdown()
+            message = shutdown(clientSocket)
             break
         elif(command == "QUIT" and stock_symbol is None):
             command = ""
             break
         elif(command == "LIST" and stock_symbol is None ):
-            print("Received: LIST\n")
-            message = print_list()
+            if isLoggedIn.my_data == True:
+                print("Received: LIST\n")
+                conn = sqlite3.connect('dataBase.db')
+                message = print_list(conn)
+                conn.close()
+            else:
+                print("Received: LIST(NOT LOGGED IN)\n")
+                message = "403: Not logged in"
         elif(command == "BALANCE" and stock_symbol is None):
             print("Received: BALANCE\n")
-            message = balance()
+            conn = sqlite3.connect('dataBase.db')
+            message = balance(conn)
+            conn.close()
         elif(command == "BUY" and user_id is not None):
             if(errorcheck(stock_symbol, amount, price, user_id)[0]):
                 print("Received: BUY " + stock_symbol + " " + str(amount) + " " + str(price) + " " + str(user_id) + "\n")
-                message = buy(stock_symbol, amount, price, user_id)
+                amount, price, user_id = errorcheck(stock_symbol, amount, price, user_id)[3:6]
+                print(amount, price, user_id)
+                conn = sqlite3.connect('dataBase.db')
+                message = buy(stock_symbol, amount, price, user_id,conn)
+                conn.close()
             else: 
                 message = errorcheck(stock_symbol, amount, price, user_id)[1]
                 print(errorcheck(stock_symbol, amount, price, user_id)[2])
         elif(command == "SELL" and user_id is not None):
             if(errorcheck(stock_symbol, amount, price, user_id)[0]):
+                amount, price, user_id = errorcheck(stock_symbol, amount, price, user_id)[3:6]
                 print("Received: SELL " + stock_symbol + " " + str(amount) + " " + str(price) + " " + str(user_id) + "\n")
-                message = sell(stock_symbol, amount, price, user_id)
-            else:
-                message = errorcheck(stock_symbol, amount, price, user_id)[1]
-                print(errorcheck(stock_symbol, amount, price, user_id)[2])
+                conn = sqlite3.connect('dataBase.db')
+                message = sell(stock_symbol, amount, price, user_id,conn)
+                conn.close()
+        elif(command == "LOGIN"):
+            conn = sqlite3.connect('dataBase.db')
+            print("Recieved Loggin Request\n")
+            temp = log_in(stock_symbol, amount, conn)
+            if temp[0] == True:
+                isLoggedIn.my_data = True
+            print(isLoggedIn.my_data)
+            message = temp[1]
+            conn.close()
+        elif(command == "LOGOUT"):
+            if isLoggedIn.my_data == True:
+                message = log_out()
+                print("RECEIVED: Logout Request")
+            else: 
+                message = log_out()
+                print("RECIEVED: Logout Request(Not Logged In Case)")
+        else:
+            message = errorcheck(stock_symbol, amount, price, user_id)[1]
+            print(errorcheck(stock_symbol, amount, price, user_id)[2])
+        
+
 
         #send response back to client
         clientSocket.send(message.encode('ascii'))
@@ -285,6 +359,24 @@ while command != "SHUTDOWN":
         message = "400 Invalid Command"
         response = ""
     clientSocket.close() # close the socket
+    return (message,command)
 
+workers = []
+threads = []
+isLoggedIn = threading.local()
 
-conn.close() # close the database
+while command != "SHUTDOWN":
+    #wait for new client to connect
+    clientSocket, address = s.accept()
+#   print("Connection established from address " + str(address))
+    client_thread = threading.Thread(target=serve_request, args = (clientSocket,))
+    workers.append(clientSocket)
+    threads.append(client_thread)
+    client_thread.start()
+
+    if isShutDown == True:
+        print("shutdown worked")
+        for thread in threads:
+            thread.join()
+    print(command)
+
