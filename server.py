@@ -9,7 +9,7 @@ global user_id
 global command
 global isShutDown
 isShutDown = False
-port = 8232# Socket port number
+port = 8359# Socket port number
 message = "400 Invalid Message" # message sent to the client
 response = "" # response from the client
 command = "" # command from the client
@@ -19,6 +19,14 @@ user_id = "" # user ID from client arguments
 mutex = threading.Lock()
 
 two_hundred_ok = "200 OK \n"
+
+# Keeps track of local thread storage
+class threadLocalStorage:
+    isLoggedIn = threading.local() # Keeps track of log in status
+    userName = threading.local() # Keeps track of username of logged user
+    passWord = threading.local() # Keeps track of password of logged user
+    userID = threading.local() # Keeps track of userID of logged user
+
 # Precondtion: the user and stock tables are created. stock_symbol is a string. amount, price, and user_id are integers
 # Postcondtion: the buy stock is serviced
 def buy(stock_symbol, amount, price, user_id,conn):
@@ -98,32 +106,54 @@ def sell(stock_symbol, amount, price, user_id,conn):
 # Precondtions: User and Stock Tables are created
 # Postcondtions: All stock records are listed
 def print_list(conn):
-    #mutex.acquire()
-    cursor = conn.execute("Select * FROM USERS")
-    records = cursor.fetchall()
-    message = two_hundred_ok 
-    if(len(records) != 0): # there are users in the database
-        for userRecord in records: # for each user in user table, prints their stocks holdings
-                message += "The list of records in the Crypto database for user " + str(userRecord[0]) + ":\n"
-                cursor = conn.execute("Select * FROM STOCKS WHERE user_id = " + str(userRecord[0]))
-                relatedList = cursor.fetchall()
-                i = 1
-                if len(relatedList) != 0: # user does own stock
-                    for stockRecord in relatedList: # for each stock in user holdings, print its information
-                        message += str(i) + "\t " + str(stockRecord[1]) + " " + str(stockRecord[3]) + " " + str(stockRecord[4]) + "\n"
-                        i += 1
-                else:  # user does not own stock
-                    message += "\tUser does not own any stock\n"  
-    else: # there are not users in the database
-        message = "403: There are no users in the database."
-    #mutex.release()    
-    return message
+    if current_user.userName.my_data == "Root" and current_user.passWord.my_data == "Root01" and current_user.userID.my_data == 1:
+        cursor = conn.execute("Select * FROM USERS ")
+        records = cursor.fetchall()
+        message = two_hundred_ok 
+        if(len(records) != 0): # there are users in the database
+            for userRecord in records: # for each user in user table, prints their stocks holdings
+                    #message += "The list of records in the Crypto database for user " + str(userRecord[0]) + ":\n"
+                    cursor = conn.execute("Select * FROM STOCKS WHERE user_id = " + str(userRecord[0]))
+                    relatedList = cursor.fetchall()
+                    i = 1
+                    if len(relatedList) != 0: # user does own stock
+                        for stockRecord in relatedList: # for each stock in user holdings, print its information
+                            message += str(i) + "\t " + str(stockRecord[1]) + " " + str(stockRecord[3]) + " " + str(stockRecord[4]) + " " + str(userRecord[1])  +  "\n"
+                            i += 1
+        else: # there are not users in the database
+            message = "403: There are no users in the database."   
+        return message
+    else:
+        cursor = conn.execute("Select * FROM USERS WHERE ID = " + str(current_user.userID.my_data))
+        records = cursor.fetchall()
+        message = two_hundred_ok 
+        if(len(records) != 0): # there are users in the database
+            for userRecord in records: # for each user in user table, prints their stocks holdings
+                    message += "The list of records in the Crypto database for " + str(userRecord[1]) + ":\n"
+                    cursor = conn.execute("Select * FROM STOCKS WHERE user_id = " + str(userRecord[0]))
+                    relatedList = cursor.fetchall()
+                    i = 1
+                    if len(relatedList) != 0: # user does own stock
+                        for stockRecord in relatedList: # for each stock in user holdings, print its information
+                            message += str(i) + "\t " + str(stockRecord[1]) + " " + str(stockRecord[3]) + " " + str(stockRecord[4]) + "\n"
+                            i += 1
+                    else:  # user does not own stock
+                        message += "\tUser does not own any stock\n"  
+        else: # there are not users in the database
+            message = "403: There are no users in the database."   
+        return message
 
 
 # Preconditions: User and Stock Tables are created
 # Postconditions: All user balance records are listed
 def balance(conn):
-    cursor = conn.execute("Select * FROM USERS")
+    filter = ""
+    if current_user.userName.my_data == "Root" and current_user.passWord.my_data == "Root01" and current_user.userID.my_data == 1:
+        filter = "" # Root User, Show all balances
+    else:
+        filter = " where ID = " + str(current_user.userID.my_data)
+
+    cursor = conn.execute("Select * FROM USERS" + filter)
     records = cursor.fetchall()
     message = two_hundred_ok 
     if(len(records) != 0): # there are users in the database
@@ -153,9 +183,6 @@ def shutdown(clientSocket):
 # Precondtions: USERS table is created
 # Postcondtions: The four users are created, if they already exists, no users are created
 def  create_user(conn):
-    #names = ["John", "Doe", "April", "Summer", "James", "Robert", "Elizabeth", "Jobs", "Robert", "David", "Mary", "Linda"]
-    # conn.execute("INSERT INTO USERS (first_name,last_name,user_name,password, usd_balance) \
-    #   VALUES ('" + str(names[random.randint(0,11)]) + "', '" + str(names[random.randint(0,11)]) + "', 'user_name', 'password', 100)"); # pushes new user into the user table
     try:
         conn.execute("INSERT INTO USERS (first_name,last_name,user_name,password, usd_balance, ID) \
         VALUES ('" + "Root" + "', '" + "User" + "', 'Root', 'Root01', 100 , 1)"); # pushes new user into the user table
@@ -174,7 +201,6 @@ def  create_user(conn):
         conn.commit()
     except:
         pass # Users have already been created
-
     return None
 
 
@@ -199,64 +225,89 @@ def errorcheck(stock_symbol, i_amount, i_price, i_user_id):
         user_id = int(i_user_id)
         return (True, "accepted", "no error", amount, price, user_id)
 
+# Precondtions: username and password are strings, thread is connected using conn to database
+# Postconditons: Returns whether there is a match in records and the appropriate message to client.
 def log_in(userName, password, conn):
     cursor = conn.execute("Select user_name , password FROM USERS")
     conn.commit()
-    user_list = cursor.fetchall()
-    match = False
+    cursor2 = conn.execute("Select ID FROM USERS")
+    conn.commit()
+    user_list = cursor.fetchall() # list of users
+    ID_list = cursor2.fetchall() # list of ID's
+    match = False # returned to indicate if there was a match between username and password in database
+    index = 0
     try:
-        #print(user_list)
-        match = (userName, password) in user_list
+        match = (userName, password) in user_list # True if there is a match, False if there is no match
+        index = user_list.index((userName, password)) # The index of this match, used to match ID to user.
     except:
-        print("error")
-
-    if match == True:
-
-        return (match, "200 OK")
-    else:
-        return (match, "403: Invalid User Name or Password")
+        print("Login Error")
+    if current_user.isLoggedIn.my_data == False: # If is not currently logged in
+        if match == True: # If there is a match
+            return (match, "200 OK", userName, password, int(ID_list[index][0])) # Returns information needed to update current user information 
+        else:
+            return (match, "403: Invalid User Name or Password") # Returns false with error message
+    else: 
+        return (False, "403: Already Logged In On This Client") # Handles case where user is already logged in.
     
+# Precondtions: none
+# Postcondtions: current client is logged out if they are already logged in.
 def log_out():
     try:
-        if isLoggedIn.my_data == True:
-            isLoggedIn.my_data = False
+        if current_user.isLoggedIn.my_data == True:
+            current_user.isLoggedIn.my_data = False
             return "200 OK"
         else:
             return "403: Already Not Logged In"
     except:
         return "403: Already Not Logged In" # thread not created yet, log in did not occur yet
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # creates socket
-s.bind((socket.gethostname(),port)) # bind socket to part 
-s.listen(5) # server starts listening
+# Precondtions: amount is a floating number, current client is connected to database using conn
+# Postconditons: balance is updated if amount is a postive number
+def deposit(amount, conn):
+    if amount > 0:
+        conn.execute("UPDATE USERS SET usd_balance = (usd_balance + " + str(amount) + ") WHERE ID = " + str(current_user.userID.my_data))
+        conn.commit()
+        cursor2 = conn.execute("Select usd_balance FROM USERS where ID = "  + str(current_user.userID.my_data))
+        balance = cursor2.fetchall()
+        return "deposit successfully, New Balance $" + str(balance[0][0])
+    else:
+        return "401: Amount is Zero or Less"
 
-conn = sqlite3.connect('dataBase.db')
-# Creates the tables if they don't exist
-conn.execute('''CREATE TABLE IF NOT EXISTS USERS(
-    ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    first_name varchar(255), 
-    last_name varchar(255), 
-    user_name varchar(255), 
-    password varchar(255), 
-    usd_balance DOUBLE NOT NULL 
-    );'''
-    )
-conn.execute('''CREATE TABLE IF NOT EXISTS STOCKS(
-    ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    stock_symbol varchar(4) NOT NULL, 
-    stock_name varchar(20), 
-    stock_balance DOUBLE, 
-    user_id int,  
-    FOREIGN KEY (user_id) REFERENCES USERS(ID) 
-    );'''
-    )
-    
-create_user(conn)
-# Enforces foreign keys, not on by default.
-conn.execute("pragma foreign_keys = ON;")
-conn.close() # close the database
+# Precondtions: user is root user and logged in.
+# Postcondtions: the current logged in users and their IP Addresses are returned
+def who():
+    if(len(who_list) != 0):
+        message = "The list of active users:\n"
+        for entry in who_list:
+            message += str(entry[0]) + "\t" + str(entry[1][0]) + "\n"
+        return message
+    else:
+        return("403: Unauthorized Use of Who Command") # Client is logged out and accessed the who command
 
-def serve_request(clientSocket):
+# Precondtions: user is logged in, stock is a string, client thread is connected to database using conn
+# Postcondtions: list of records with stock name(either full name or symbol) are returned for the logged user.
+def lookup(stock, conn):
+    cursor = conn.execute("Select stock_symbol, stock_name, stock_balance  FROM STOCKS WHERE user_id = " + str(current_user.userID.my_data))
+    conn.commit()
+    canidates = cursor.fetchall()
+    if len(canidates) != 0:
+        message = ""
+        count = 0
+        for i in range(len(canidates)):
+            if canidates[i][0] == stock or canidates[i][1] == stock:
+                message += stock + "\t" + str(canidates[i][2]) + "\n"
+                count += 1
+        if count > 0: # Search did yield a result
+            start_message = "Found " + str(count) + " match\n"
+            return start_message + message 
+        else:
+            return "404: Your search did not match any records." # Search did not yield any results
+    else:
+        return "404: Your search did not match any records." # No stocks in database for this user
+
+# Precondtions: 
+# Postcondtions: 
+def serve_request(address,clientSocket):
     #loop represents client's session with server
     global command
     global message
@@ -265,7 +316,7 @@ def serve_request(clientSocket):
     amount = 0
     price = 0
     user_id = 0
-    isLoggedIn.my_data = False
+    current_user.isLoggedIn.my_data = False
 
     while command != "QUIT" and isShutDown == False: 
         #wait for input from client
@@ -299,58 +350,94 @@ def serve_request(clientSocket):
             command = ""
             break
         elif(command == "LIST" and stock_symbol is None ):
-            if isLoggedIn.my_data == True:
+            if current_user.isLoggedIn.my_data == True:
                 print("Received: LIST\n")
                 conn = sqlite3.connect('dataBase.db')
                 message = print_list(conn)
                 conn.close()
             else:
-                print("Received: LIST(NOT LOGGED IN)\n")
-                message = "403: Not logged in"
+                print("Received: LIST (NOT LOGGED IN CASE)\n")
+                message = "403: Not Logged In"
         elif(command == "BALANCE" and stock_symbol is None):
             print("Received: BALANCE\n")
             conn = sqlite3.connect('dataBase.db')
             message = balance(conn)
             conn.close()
-        elif(command == "BUY" and user_id is not None):
-            if(errorcheck(stock_symbol, amount, price, user_id)[0]):
-                print("Received: BUY " + stock_symbol + " " + str(amount) + " " + str(price) + " " + str(user_id) + "\n")
-                amount, price, user_id = errorcheck(stock_symbol, amount, price, user_id)[3:6]
-                print(amount, price, user_id)
-                conn = sqlite3.connect('dataBase.db')
-                message = buy(stock_symbol, amount, price, user_id,conn)
-                conn.close()
-            else: 
-                message = errorcheck(stock_symbol, amount, price, user_id)[1]
-                print(errorcheck(stock_symbol, amount, price, user_id)[2])
-        elif(command == "SELL" and user_id is not None):
-            if(errorcheck(stock_symbol, amount, price, user_id)[0]):
-                amount, price, user_id = errorcheck(stock_symbol, amount, price, user_id)[3:6]
-                print("Received: SELL " + stock_symbol + " " + str(amount) + " " + str(price) + " " + str(user_id) + "\n")
-                conn = sqlite3.connect('dataBase.db')
-                message = sell(stock_symbol, amount, price, user_id,conn)
-                conn.close()
+        elif(command == "BUY"):
+            if current_user.isLoggedIn.my_data == True: ## User Is Logged In Case
+                if(errorcheck(stock_symbol, amount, price, str(current_user.userID.my_data))[0]):
+                    print("Received: BUY " + stock_symbol + " " + str(amount) + " " + str(price) + " " + str(current_user.userID.my_data) + " (Logged In Case)\n")
+                    amount, price, user_id = errorcheck(stock_symbol, amount, price, str(current_user.userID.my_data))[3:6]
+                    print(amount, price, current_user.userID.my_data)
+                    conn = sqlite3.connect('dataBase.db')
+                    message = buy(stock_symbol, amount, price, current_user.userID.my_data,conn)
+                    conn.close()
+                else: # Did Not Pass Error Check
+                    message = errorcheck(stock_symbol, amount, price,  str(current_user.userID.my_data))[1]
+                    print(errorcheck(stock_symbol, amount, price,  str(current_user.userID.my_data))[2])
+            else: # User is Not Logged In Case
+                message = "403: Not Logged In"
+                print("Received: BUY " + stock_symbol + " " + str(amount) + " " + str(price) + " (Not Logged In Case)\n")
+        elif(command == "SELL"):
+            if current_user.isLoggedIn.my_data == True: ## User Is Logged In Case
+                if(errorcheck(stock_symbol, amount, price, str(current_user.userID.my_data))[0]):
+                    amount, price, user_id = errorcheck(stock_symbol, amount, price, str(current_user.userID.my_data))[3:6]
+                    print("Received: SELL " + stock_symbol + " " + str(amount) + " " + str(price) + " " + str(current_user.userID.my_data) + " (Logged In Case)\n")
+                    conn = sqlite3.connect('dataBase.db')
+                    message = sell(stock_symbol, amount, price, current_user.userID.my_data,conn)
+                    conn.close()
+                else: #Did Not Pass Error Check
+                    message = errorcheck(stock_symbol, amount, price,  str(current_user.userID.my_data))[1]
+                    print(errorcheck(stock_symbol, amount, price,  str(current_user.userID.my_data))[2])
+            else: # User is Not Logged In Case
+                message = "403: Not Logged In"
+                print("Received: SELL " + stock_symbol + " " + str(amount) + " " + str(price) + " (Not Logged In Case)\n")
+            
         elif(command == "LOGIN"):
             conn = sqlite3.connect('dataBase.db')
             print("Recieved Loggin Request\n")
             temp = log_in(stock_symbol, amount, conn)
             if temp[0] == True:
-                isLoggedIn.my_data = True
-            print(isLoggedIn.my_data)
+                current_user.isLoggedIn.my_data = True
+                current_user.userName.my_data = temp[2]
+                current_user.passWord.my_data = temp[3]
+                current_user.userID.my_data = temp[4]
+                entry = (current_user.userName.my_data, address)
+                who_list.append(entry)
             message = temp[1]
             conn.close()
         elif(command == "LOGOUT"):
-            if isLoggedIn.my_data == True:
+            if current_user.isLoggedIn.my_data == True:
                 message = log_out()
-                print("RECEIVED: Logout Request")
+                who_list.remove((current_user.userName.my_data, address))
+                print("RECEIVED: LOGOUT Request")
             else: 
                 message = log_out()
-                print("RECIEVED: Logout Request(Not Logged In Case)")
-        else:
-            message = errorcheck(stock_symbol, amount, price, user_id)[1]
-            print(errorcheck(stock_symbol, amount, price, user_id)[2])
-        
-
+                print("RECIEVED: LOGOUT Request (Not Logged In Case)")
+        elif(command == "DEPOSIT"):
+            conn = sqlite3.connect('dataBase.db')
+            message = deposit(int(stock_symbol), conn)
+            conn.close()
+        elif(command == "WHO"):
+            if current_user.isLoggedIn.my_data == True: # Is Logged In
+                if current_user.userName.my_data == "Root" and current_user.passWord.my_data == "Root01" and current_user.userID.my_data == 1: ## Is Root User
+                    message = who()
+                    print("Received: WHO Request (Root User Case)")
+                else: # Logged in but not Root User
+                    message = "403: Not Authorized to Issue This Command"
+                    print("Received: WHO Request (Not Root User Case)")
+            else:
+                message = "403: Not Logged In"
+                print("Received: WHO Request (Not Logged In Case)")
+        elif(command == "LOOKUP"):
+            if current_user.isLoggedIn.my_data == True: # Is Logged In
+                conn = sqlite3.connect('dataBase.db')
+                message = lookup(stock_symbol,conn)
+                conn.close()
+                print("Received: LOOKUP Request (Logged In Case)")
+            else:
+                message = "403: Not Logged In"
+                print("Received: LOOKUP Request (Not Logged In Case)")
 
         #send response back to client
         clientSocket.send(message.encode('ascii'))
@@ -361,20 +448,60 @@ def serve_request(clientSocket):
     clientSocket.close() # close the socket
     return (message,command)
 
-workers = []
-threads = []
-isLoggedIn = threading.local()
+
+conn = sqlite3.connect('dataBase.db')
+# Creates the tables if they don't exist
+conn.execute('''CREATE TABLE IF NOT EXISTS USERS(
+    ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    first_name varchar(255), 
+    last_name varchar(255), 
+    user_name varchar(255), 
+    password varchar(255), 
+    usd_balance DOUBLE NOT NULL 
+    );'''
+    )
+conn.execute('''CREATE TABLE IF NOT EXISTS STOCKS(
+    ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    stock_symbol varchar(4) NOT NULL, 
+    stock_name varchar(20), 
+    stock_balance DOUBLE, 
+    user_id int,  
+    FOREIGN KEY (user_id) REFERENCES USERS(ID) 
+    );'''
+    )
+    
+create_user(conn)
+# Enforces foreign keys, not on by default.
+conn.execute("pragma foreign_keys = ON;")
+conn.close() # close the database
+
+
+
+workers = [] # Place Holder, does nothing currently
+threads = [] # Place Holder, does nothing currently
+
+#isLoggedIn = threading.local()
+
+
+
+current_user = threadLocalStorage()
+who_list = [] # Used to keep track of logged users
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # creates socket
+s.bind((socket.gethostname(),port)) # bind socket to part 
+s.listen(5) # server starts listening
 
 while command != "SHUTDOWN":
     #wait for new client to connect
     clientSocket, address = s.accept()
 #   print("Connection established from address " + str(address))
-    client_thread = threading.Thread(target=serve_request, args = (clientSocket,))
-    workers.append(clientSocket)
-    threads.append(client_thread)
-    client_thread.start()
+    client_thread = threading.Thread(target=serve_request, args = (address, clientSocket,))
 
-    if isShutDown == True:
+    workers.append(clientSocket) # Does nothing currently
+    threads.append(client_thread) # Does nothing currently 
+
+    client_thread.start()
+    if isShutDown == True: # not working
         print("shutdown worked")
         for thread in threads:
             thread.join()
