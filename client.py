@@ -1,10 +1,13 @@
 import socket
 import sys
+import select
+
 port = 8359
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ## creates socket
 s.connect((sys.argv[1], port)) ## Connects to the socket at port number
 response = ""
 message = ""
+
 while True:
 #   send command to server
     message = input(">> ")
@@ -19,6 +22,13 @@ while True:
         print(s.recv(2108).decode('ascii'))
         break
     #read response from server
-    response = s.recv(6000).decode('ascii')
+    print("waiting")
+    #response = s.recv(6000).decode('ascii')
+    print("?")
     print(response)
+
+    # socket_list = [sys.stdin, s]
+
+    # readable, writeable, exceptional = select.select(socket_list, [], [])
+
 s.close()
