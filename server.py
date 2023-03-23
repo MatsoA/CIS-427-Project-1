@@ -610,6 +610,7 @@ who_list = [] # Used to keep track of logged users
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # creates socket
 #s.setblocking(False)
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind((socket.gethostname(),port)) # bind socket to part 
 s.listen(5) # server starts listening
 
@@ -635,8 +636,14 @@ while command != "SHUTDOWN":
 
     readable, writable, exceptional = select.select(inputs, outputs, inputs)
 
+    for socket in writable:
+        print('eeee')
+        print(messages[socket])
+        if messages[socket]:
+            socket.send(messages[s])
+
     for socket in readable:
-        print(socket)
+        #print(socket)
         if socket is s:
             clientSocket, address = s.accept()
             clientSocket.setblocking(0)
@@ -652,12 +659,8 @@ while command != "SHUTDOWN":
             else:
                 messages[s] = evaluate_response(data)
                 outputs.append(s)
+                print(messages[s])
 
-    for socket in writable:
-        print('eeee')
-        print(socket)
-        if messages[socket]:
-            socket.send(messages[s])
  
 
 
