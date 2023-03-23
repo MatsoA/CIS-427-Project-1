@@ -240,9 +240,8 @@ def log_in(userName, password, conn):
         match = (userName, password) in user_list # True if there is a match, False if there is no match
         index = user_list.index((userName, password)) # The index of this match, used to match ID to user.
     except:
-        #print("Login Error")
-        return (False, "403: Already Logged In On a Different Client")
-    # Checking if user is already logged in on a different client
+        pass # did not find user
+    #    print("Login Error")
     for entry in who_list:
             if str(entry[0]) == userName:
                 return (False, "403: Already Logged In On a Different Client")
