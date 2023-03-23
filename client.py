@@ -1,10 +1,15 @@
 import socket
 import sys
+
+
 port = 8359
+
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ## creates socket
 s.connect((sys.argv[1], port)) ## Connects to the socket at port number
+
 response = ""
 message = ""
+
 while True:
 #   send command to server
     message = input(">> ")
@@ -22,3 +27,4 @@ while True:
     response = s.recv(6000).decode('ascii')
     print(response)
 s.close()
+sys.exit()
