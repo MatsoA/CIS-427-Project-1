@@ -2,7 +2,7 @@ import socket
 import sys
 
 
-port = 8359
+port = 8361
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) ## creates socket
 s.connect((sys.argv[1], port)) ## Connects to the socket at port number

@@ -9,7 +9,7 @@ global user_id
 global command
 global isShutDown
 isShutDown = False
-port = 8359# Socket port number
+port = 8361# Socket port number
 message = "400 Invalid Message" # message sent to the client
 response = "" # response from the client
 command = "" # command from the client
@@ -118,7 +118,7 @@ def print_list(conn):
                     i = 1
                     if len(relatedList) != 0: # user does own stock
                         for stockRecord in relatedList: # for each stock in user holdings, print its information
-                            message += str(i) + "\t " + str(stockRecord[1]) + " " + str(stockRecord[3]) + " " + str(stockRecord[4]) + " " + str(userRecord[1])  +  "\n"
+                            message += str(i) + "\t " + str(stockRecord[1]) + " " + str(stockRecord[3]) + " " + str(userRecord[1])  +  "\n"
                             i += 1
         else: # there are not users in the database
             message = "403: There are no users in the database."   
@@ -135,7 +135,7 @@ def print_list(conn):
                     i = 1
                     if len(relatedList) != 0: # user does own stock
                         for stockRecord in relatedList: # for each stock in user holdings, print its information
-                            message += str(i) + "\t " + str(stockRecord[1]) + " " + str(stockRecord[3]) + " " + str(stockRecord[4]) + "\n"
+                            message += str(i) + "\t " + str(stockRecord[1]) + " " + str(stockRecord[3])  + "\n"
                             i += 1
                     else:  # user does not own stock
                         message += "\tUser does not own any stock\n"  
@@ -228,7 +228,6 @@ def errorcheck(stock_symbol, i_amount, i_price, i_user_id):
 # Precondtions: username and password are strings, thread is connected using conn to database
 # Postconditons: Returns whether there is a match in records and the appropriate message to client.
 def log_in(userName, password, conn):
-    print(userName, password)
     cursor = conn.execute("Select user_name , password FROM USERS")
     conn.commit()
     cursor2 = conn.execute("Select ID FROM USERS")
@@ -241,7 +240,13 @@ def log_in(userName, password, conn):
         match = (userName, password) in user_list # True if there is a match, False if there is no match
         index = user_list.index((userName, password)) # The index of this match, used to match ID to user.
     except:
-        print("Login Error")
+        #print("Login Error")
+        return (False, "403: Already Logged In On a Different Client")
+    # Checking if user is already logged in on a different client
+    for entry in who_list:
+            if str(entry[0]) == userName:
+                return (False, "403: Already Logged In On a Different Client")
+            
     if current_user.isLoggedIn.my_data == False: # If is not currently logged in
         if match == True: # If there is a match
             return (match, "200 OK", userName, password, int(ID_list[index][0])) # Returns information needed to update current user information 
@@ -348,6 +353,10 @@ def serve_request(address,clientSocket):
             break
         elif(command == "QUIT" and stock_symbol is None):
             command = ""
+            if current_user.isLoggedIn.my_data == True: # Is Logged In
+                who_list.remove((current_user.userName.my_data, address)) # removes user if they forgot to logout before quitting
+            else:
+                pass
             break
         elif(command == "LIST" and stock_symbol is None ):
             if current_user.isLoggedIn.my_data == True:
@@ -356,19 +365,22 @@ def serve_request(address,clientSocket):
                 message = print_list(conn)
                 conn.close()
             else:
-                print("Received: LIST (NOT LOGGED IN CASE)\n")
+                print("Received: LIST (Not Logged In Case)\n")
                 message = "403: Not Logged In"
         elif(command == "BALANCE" and stock_symbol is None):
-            print("Received: BALANCE\n")
-            conn = sqlite3.connect('dataBase.db')
-            message = balance(conn)
-            conn.close()
+            if current_user.isLoggedIn.my_data == True: # Is Logged In
+                print("Received: BALANCE\n")
+                conn = sqlite3.connect('dataBase.db')
+                message = balance(conn)
+                conn.close()
+            else:
+                message = "403: Not Logged In"
+                print("Received: BALANCE Request (Not Logged In Case)")
         elif(command == "BUY"):
             if current_user.isLoggedIn.my_data == True: ## User Is Logged In Case
                 if(errorcheck(stock_symbol, amount, price, str(current_user.userID.my_data))[0]):
                     print("Received: BUY " + stock_symbol + " " + str(amount) + " " + str(price) + " " + str(current_user.userID.my_data) + " (Logged In Case)\n")
                     amount, price, user_id = errorcheck(stock_symbol, amount, price, str(current_user.userID.my_data))[3:6]
-                    print(amount, price, current_user.userID.my_data)
                     conn = sqlite3.connect('dataBase.db')
                     message = buy(stock_symbol, amount, price, current_user.userID.my_data,conn)
                     conn.close()
@@ -420,10 +432,16 @@ def serve_request(address,clientSocket):
                 message = log_out()
                 print("RECIEVED: LOGOUT Request (Not Logged In Case)")
         elif(command == "DEPOSIT" and len(response) == 2):
-            deposit_amount = response[1]
-            conn = sqlite3.connect('dataBase.db')
-            message = deposit(int(deposit_amount), conn)
-            conn.close()
+            if current_user.isLoggedIn.my_data == True:
+                print("Received: DEPOSIT\n")
+                deposit_amount = response[1]
+                conn = sqlite3.connect('dataBase.db')
+                message = deposit(int(deposit_amount), conn)
+                conn.close()
+            else:
+                print("Received: DEPOSIT (NOT LOGGED IN CASE)\n")
+                message = "403: Not Logged In"
+
         elif(command == "WHO" and stock_symbol == None):
             if current_user.isLoggedIn.my_data == True: # Is Logged In
                 if current_user.userName.my_data == "Root" and current_user.passWord.my_data == "Root01" and current_user.userID.my_data == 1: ## Is Root User
