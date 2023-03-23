@@ -2,6 +2,8 @@ import socket
 import sqlite3
 import random
 import threading
+import sys
+
 global message
 global amount
 global price
@@ -169,15 +171,19 @@ def balance(conn):
 def shutdown(clientSocket):
     global isShutDown
     global threads
-    message = "200 OK"
-    clientSocket.send(message.encode('ascii')) # Notifies client that program ends
-    #for socket in workers:
-    #    socket.close() # Close Client Socket
-    clientSocket.close()
-    s.close()
-    isShutDown = True
-    #for thread in threads:
-    #   thread.join()
+    if current_user.userName.my_data == "Root":
+        message = "200 OK"
+        clientSocket.send(message.encode('ascii')) # Notifies client that program ends
+        #for socket in workers:
+        #    socket.close() # Close Client Socket
+        clientSocket.close()
+        s.close()
+        isShutDown = True
+        sys.exit()
+        #for thread in threads:
+        #   thread.join()
+    else :
+        message = "failed incorrect user"
     return message
 
 # Precondtions: USERS table is created
@@ -329,7 +335,10 @@ def serve_request(address,clientSocket):
         user_id = None
 
         #reset string holders 
-        message = "400 Invalid Command"
+        if isShutDown == True: # close the socket
+            message = "SHUTDOWN" # close the socket
+        else:
+            message = "400 Invalid Command"
 
         #parse input into commands and parameters
         for index, token in enumerate(response):
@@ -513,7 +522,7 @@ who_list = [] # Used to keep track of logged users
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # creates socket
 s.bind((socket.gethostname(),port)) # bind socket to part 
 s.listen(5) # server starts listening
-
+print(command)
 while command != "SHUTDOWN":
     #wait for new client to connect
     clientSocket, address = s.accept()
@@ -528,5 +537,5 @@ while command != "SHUTDOWN":
         print("shutdown worked")
         for thread in threads:
             thread.join()
-    print(command)
+   
 
