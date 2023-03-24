@@ -175,10 +175,11 @@ def shutdown():
     global isShutDown
     global threads
     message = "SHUTDOWN"
+    mutex.acquire()
     for clientSocket in client_sockets:
         clientSocket.send(message.encode('ascii')) # Notifies client that program ends
         clientSocket.close()
-    
+    mutex.release()
     s.close()
     isShutDown = True
     sys.exit()
