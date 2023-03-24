@@ -10,6 +10,7 @@ global price
 global user_id
 global command
 global isShutDown
+global client_sockets
 isShutDown = False
 port = 8361# Socket port number
 message = "400 Invalid Message" # message sent to the client
@@ -18,6 +19,8 @@ command = "" # command from the client
 amount = "" # amount of stocks from client arguments
 price = "" # price of stocks from client arguments
 user_id = "" # user ID from client arguments
+client_sockets = [] # list of client sockets connected
+max_clients = 3 # max number of clients that can be connected
 mutex = threading.Lock()
 
 two_hundred_ok = "200 OK \n"
@@ -168,22 +171,18 @@ def balance(conn):
 
 # Preconditions: Client connected to Server
 # Postconditions: Client socket is closed, server closes and program ends
-def shutdown(clientSocket):
+def shutdown():
     global isShutDown
     global threads
-    if current_user.userName.my_data == "Root":
-        message = "200 OK"
+    message = "SHUTDOWN"
+    for clientSocket in client_sockets:
         clientSocket.send(message.encode('ascii')) # Notifies client that program ends
-        #for socket in workers:
-        #    socket.close() # Close Client Socket
         clientSocket.close()
-        s.close()
-        isShutDown = True
-        sys.exit()
-        #for thread in threads:
-        #   thread.join()
-    else :
-        message = "failed incorrect user"
+    
+    s.close()
+    isShutDown = True
+    sys.exit()
+
     return message
 
 # Precondtions: USERS table is created
@@ -356,15 +355,23 @@ def serve_request(address,clientSocket):
 
         #  Command Switch Board. Executes user command by calling corrosponding command function
         if(command == "SHUTDOWN" and stock_symbol is None):
-            print("Received: SHUTDOWN\n")
-            message = shutdown(clientSocket)
-            break
+            if current_user.isLoggedIn.my_data == True:
+                if current_user.userName.my_data == "Root" and current_user.passWord.my_data == "Root01" and current_user.userID.my_data == 1:
+                    print("Received: SHUTDOWN\n")
+                    message = shutdown()
+                    break
+                else:
+                    message = "403: Not Logged In as Root User"
+            else:
+                message = "403: Not Logged In as Root User"
         elif(command == "QUIT" and stock_symbol is None):
             command = ""
             if current_user.isLoggedIn.my_data == True: # Is Logged In
                 who_list.remove((current_user.userName.my_data, address)) # removes user if they forgot to logout before quitting
             else:
                 pass
+            client_sockets.pop(client_sockets.index(clientSocket))
+            print(len(client_sockets))
             break
         elif(command == "LIST" and stock_symbol is None ):
             if current_user.isLoggedIn.my_data == True:
@@ -397,7 +404,7 @@ def serve_request(address,clientSocket):
                     print(errorcheck(stock_symbol, amount, price,  str(current_user.userID.my_data))[2])
             else: # User is Not Logged In Case
                 message = "403: Not Logged In"
-                print("Received: BUY " + stock_symbol + " " + str(amount) + " " + str(price) + " (Not Logged In Case)\n")
+                print("Received: BUY " + str(stock_symbol) + " " + str(amount) + " " + str(price) + " (Not Logged In Case)\n")
         elif(command == "SELL"):
             if current_user.isLoggedIn.my_data == True: ## User Is Logged In Case
                 if(errorcheck(stock_symbol, amount, price, str(current_user.userID.my_data))[0]):
@@ -411,7 +418,7 @@ def serve_request(address,clientSocket):
                     print(errorcheck(stock_symbol, amount, price,  str(current_user.userID.my_data))[2])
             else: # User is Not Logged In Case
                 message = "403: Not Logged In"
-                print("Received: SELL " + stock_symbol + " " + str(amount) + " " + str(price) + " (Not Logged In Case)\n")
+                print("Received: SELL " + str(stock_symbol) + " " + str(amount) + " " + str(price) + " (Not Logged In Case)\n")
             
         elif(command == "LOGIN" and len(response) == 3):
             conn = sqlite3.connect('dataBase.db')
@@ -439,13 +446,20 @@ def serve_request(address,clientSocket):
             else: 
                 message = log_out()
                 print("RECIEVED: LOGOUT Request (Not Logged In Case)")
-        elif(command == "DEPOSIT" and len(response) == 2):
+        elif(command == "DEPOSIT"):
             if current_user.isLoggedIn.my_data == True:
-                print("Received: DEPOSIT\n")
-                deposit_amount = response[1]
-                conn = sqlite3.connect('dataBase.db')
-                message = deposit(int(deposit_amount), conn)
-                conn.close()
+                if (len(response) == 2):
+                    print("Received: DEPOSIT\n")
+                    deposit_amount = response[1]
+                    if (not deposit_amount.isnumeric()):
+                        message = "403: Deposit amount must be a number"
+                    else:
+                        conn = sqlite3.connect('dataBase.db')
+                        message = deposit(int(deposit_amount), conn)
+                        conn.close()
+                else:
+                    print("Received: DEPOSIT (INCORRECT ARGUMENTS)\n")
+                    message = "403: Invalid Format for DEPOSIT command (1 argument expected)"
             else:
                 print("Received: DEPOSIT (NOT LOGGED IN CASE)\n")
                 message = "403: Not Logged In"
@@ -461,12 +475,16 @@ def serve_request(address,clientSocket):
             else:
                 message = "403: Not Logged In"
                 print("Received: WHO Request (Not Logged In Case)")
-        elif(command == "LOOKUP" and len(response) == 2):
+        elif(command == "LOOKUP"):
             if current_user.isLoggedIn.my_data == True: # Is Logged In
-                conn = sqlite3.connect('dataBase.db')
-                message = lookup(stock_symbol,conn)
-                conn.close()
-                print("Received: LOOKUP Request (Logged In Case)")
+                if len(response) == 2:
+                    conn = sqlite3.connect('dataBase.db')
+                    message = lookup(stock_symbol,conn)
+                    conn.close()
+                    print("Received: LOOKUP Request (Logged In Case)")
+                else:
+                    print("Received: LOOKUP (INCORRECT ARGUMENTS)\n")
+                    message = "403: Invalid Format for LOOKUP command (1 argument expected)"
             else:
                 message = "403: Not Logged In"
                 print("Received: LOOKUP Request (Not Logged In Case)")
@@ -509,9 +527,6 @@ conn.close() # close the database
 
 
 
-workers = [] # Place Holder, does nothing currently
-threads = [] # Place Holder, does nothing currently
-
 #isLoggedIn = threading.local()
 
 
@@ -520,22 +535,20 @@ current_user = threadLocalStorage()
 who_list = [] # Used to keep track of logged users
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # creates socket
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind((socket.gethostname(),port)) # bind socket to part 
 s.listen(5) # server starts listening
 print(command)
-while command != "SHUTDOWN":
-    #wait for new client to connect
-    clientSocket, address = s.accept()
-#   print("Connection established from address " + str(address))
-    client_thread = threading.Thread(target=serve_request, args = (address, clientSocket,))
+while message != "SHUTDOWN":
+    sys.stdout.flush()
+    if len(client_sockets) < max_clients:
+        #wait for new client to connect
+        clientSocket, address = s.accept()
+    #   print("Connection established from address " + str(address))
+        client_thread = threading.Thread(target=serve_request, args = (address, clientSocket,))
 
-    workers.append(clientSocket) # Does nothing currently
-    threads.append(client_thread) # Does nothing currently 
+        client_sockets.append(clientSocket)
+        client_thread.start()
 
-    client_thread.start()
-    if isShutDown == True: # not working
-        print("shutdown worked")
-        for thread in threads:
-            thread.join()
    
 
