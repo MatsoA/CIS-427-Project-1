@@ -10,6 +10,9 @@ s.connect((sys.argv[1], port)) ## Connects to the socket at port number
 
 response = ""
 message = ""
+
+quit_message = "Server Shutdown"
+
 sys.stdout.write('>>')
 sys.stdout.flush()
 try: 
@@ -24,6 +27,9 @@ try:
                 data = sock.recv(6000).decode('ascii')
                 if not data:
                     sys.exit()
+                if data == "QUIT":
+                    quit_message = "Client Closed"
+                    sys.exit()
                 if data == "SHUTDOWN":
                     sys.exit()
                 else:
@@ -35,7 +41,7 @@ try:
                 s.send(message.encode('ascii'))
 
 except:
-    print("Server Shutdown")
+    print(quit_message)
 s.close()
 sys.exit()
 

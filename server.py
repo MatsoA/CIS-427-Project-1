@@ -371,8 +371,9 @@ def serve_request(address,clientSocket):
                 who_list.remove((current_user.userName.my_data, address)) # removes user if they forgot to logout before quitting
             else:
                 pass
+            message = "QUIT"
+            clientSocket.send(message.encode('ascii'))
             client_sockets.pop(client_sockets.index(clientSocket))
-            print(len(client_sockets))
             break
         elif(command == "LIST" and stock_symbol is None ):
             if current_user.isLoggedIn.my_data == True:
