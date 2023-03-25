@@ -172,6 +172,7 @@ def balance(conn):
 # Preconditions: Client connected to Server
 # Postconditions: Client socket is closed, server closes and program ends
 def shutdown():
+    print('Server Closed')
     global isShutDown
     global threads
     message = "SHUTDOWN"
@@ -180,9 +181,8 @@ def shutdown():
         clientSocket.send(message.encode('ascii')) # Notifies client that program ends
         clientSocket.close()
     mutex.release()
-    s.close()
     isShutDown = True
-    sys.exit()
+    s.close()
 
     return message
 
@@ -216,7 +216,11 @@ def errorcheck(stock_symbol, i_amount, i_price, i_user_id):
     message = ""
     amount = 0
     user_id = 0
-
+    global response
+    if (len(response) != 4):
+        error = "RECIEVED: Invalid Command: Invalid Number of Arguements"
+        message = "403: Invalid Format for BUY or SELL Command Arguments"
+        return (False, message, error)
     if( not (len(stock_symbol) <= 5 and stock_symbol.isalpha())): # invalid stock_symbol
         error = "RECEIVED: Invalid Command: Invalid Stock Symbol\n"
         message = "403: Invalid Format or Stock Symbol Doesn't Exist"
@@ -323,22 +327,26 @@ def serve_request(address,clientSocket):
     global command
     global message
     global isShutDown
+    global response
     command = ""
     current_user.isLoggedIn.my_data = False
 
     while command != "QUIT" and isShutDown == False: 
-        #wait for input from client
-        response = clientSocket.recv(2018).decode('ascii').split()
+        try:
+            #wait for input from client
+            response = clientSocket.recv(2018).decode('ascii').split()
+        except:
+            sys.exit()
         stock_symbol = None
         amount = None
         price = None
         user_id = None
 
-        #reset string holders 
-        if isShutDown == True: # close the socket
-            message = "SHUTDOWN" # close the socket
-        else:
-            message = "400 Invalid Command"
+        # #reset string holders 
+        # if isShutDown == True: # close the socket
+        #     message = "SHUTDOWN" # close the socket
+        # else:
+        #     message = "400 Invalid Command"
 
         #parse input into commands and parameters
         for index, token in enumerate(response):
@@ -491,8 +499,11 @@ def serve_request(address,clientSocket):
                 message = "403: Not Logged In"
                 print("Received: LOOKUP Request (Not Logged In Case)")
 
-        #send response back to client
-        clientSocket.send(message.encode('ascii'))
+        try:
+            #send response back to client
+            clientSocket.send(message.encode('ascii'))
+        except:
+            clientSocket.close() # close the socket
         
         #reset string holders 
         message = "400 Invalid Command"
@@ -542,10 +553,14 @@ s.bind((socket.gethostname(),port)) # bind socket to part
 s.listen(5) # server starts listening
 print(command)
 while message != "SHUTDOWN":
-    sys.stdout.flush()
+    #sys.stdout.flush()
     if len(client_sockets) < max_clients:
-        #wait for new client to connect
-        clientSocket, address = s.accept()
+        if not isShutDown:
+            #wait for new client to connect
+            clientSocket, address = s.accept()
+        else:
+            break
+            sys.exit()
     #   print("Connection established from address " + str(address))
         client_thread = threading.Thread(target=serve_request, args = (address, clientSocket,))
 
