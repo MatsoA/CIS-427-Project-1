@@ -182,6 +182,8 @@ def shutdown():
         clientSocket.close()
     mutex.release()
     isShutDown = True
+    end_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    end_socket.connect((socket.gethostname(),port))
     s.close()
 
     return message
